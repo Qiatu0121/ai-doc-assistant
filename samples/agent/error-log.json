@@ -1,0 +1,3 @@
+{
+  "message": "请分析这段日志：2026-10-25 10:00:00 ERROR java.lang.NullPointerException at com.example.Service.run(Service.java:10) Caused by: java.net.ConnectException: Connection refused"
+}

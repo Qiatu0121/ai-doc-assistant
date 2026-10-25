@@ -1,0 +1,69 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: ai-doc-assistant
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 敏感值使用环境变量；也可复制 application-local.yml.example 为
+    # application-local.yml 后通过 additional-location 加载
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ai_doc_assistant?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+  http:
+    client:
+      # 避免模型服务不可达时请求长时间挂起
+      connect-timeout: 3s
+      read-timeout: 10s
+  ai:
+    tools:
+      # 工具主动抛出的控制类异常直接中断 Agent 循环，例如最大调用次数限制
+      throw-exception-on-error: true
+    retry:
+      # 网络异常最多重试 2 次；4xx 不重试
+      max-attempts: 2
+      on-client-errors: false
+      backoff:
+        initial-interval: 500ms
+        multiplier: 2
+        max-interval: 2s
+    openai:
+      # 未配置真实 Key 时仍能启动，但上传文档会快速失败并提示配置 Key
+      api-key: ${OPENAI_API_KEY:not-configured}
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${CHAT_MODEL:gpt-4o-mini}
+          temperature: 0.2
+      embedding:
+        options:
+          model: ${EMBEDDING_MODEL:text-embedding-3-small}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+app:
+  storage:
+    # 原始文档目录
+    upload-dir: ./data/uploads
+    # SimpleVectorStore 持久化文件
+    vector-store-file: ./data/vector-store.json
+  agent:
+    # 单次请求最多允许执行的工具次数，由后端强制限制
+    max-tool-calls: 6
+    # 知识库检索默认返回条数
+    default-top-k: 4
+    # 相似度阈值，低于该值的结果不返回
+    similarity-threshold: 0.3
+
+logging:
+  file:
+    name: logs/app.log
