@@ -13,6 +13,12 @@ spring:
     username: <YOUR_DB_USERNAME>
     password: <YOUR_DB_PASSWORD>
 
+  elasticsearch:
+    uris: http://localhost:9200
+    # 本地开发关闭 ES security 时留空；开启 security 时填写
+    username: ""
+    password: ""
+
   ai:
     openai:
       api-key: <YOUR_OPENAI_API_KEY>
@@ -24,3 +30,10 @@ spring:
       embedding:
         options:
           model: text-embedding-3-small
+    vectorstore:
+      elasticsearch:
+        initialize-schema: true
+        index-name: ai-doc-assistant
+        # 必须与 Embedding 模型一致；OpenAI text-embedding-3-small 为 1536
+        dimensions: 1536
+        similarity: cosine

@@ -15,6 +15,10 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+  elasticsearch:
+    uris: ${ES_URIS:http://localhost:9200}
+    username: ${ES_USERNAME:}
+    password: ${ES_PASSWORD:}
   http:
     client:
       # 避免模型服务不可达时请求长时间挂起
@@ -43,6 +47,13 @@ spring:
       embedding:
         options:
           model: ${EMBEDDING_MODEL:text-embedding-3-small}
+    vectorstore:
+      elasticsearch:
+        # 首次启动自动创建索引；维度必须与 Embedding 模型一致
+        initialize-schema: true
+        index-name: ${ES_INDEX_NAME:ai-doc-assistant}
+        dimensions: ${ES_VECTOR_DIMENSIONS:1536}
+        similarity: ${ES_SIMILARITY:cosine}
 
 mybatis-plus:
   configuration:
@@ -54,8 +65,6 @@ app:
   storage:
     # 原始文档目录
     upload-dir: ./data/uploads
-    # SimpleVectorStore 持久化文件
-    vector-store-file: ./data/vector-store.json
   agent:
     # 单次请求最多允许执行的工具次数，由后端强制限制
     max-tool-calls: 6

@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS ai_document_chunk (
     document_id BIGINT NOT NULL,
     chunk_index INT NOT NULL COMMENT '文档内序号，从 0 开始',
     content LONGTEXT NOT NULL COMMENT '分块原文',
-    vector_id VARCHAR(64) NOT NULL COMMENT 'SimpleVectorStore 中的向量 ID',
+    vector_id VARCHAR(64) NOT NULL COMMENT 'Elasticsearch 中的向量 ID',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_vector_id (vector_id),
     KEY idx_document_id (document_id)

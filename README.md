@@ -2,7 +2,7 @@
 
 当前实现：
 
-- 文档模块：上传、Tika 解析、分块、Embedding、SimpleVectorStore 入库、列表、详情、分块查看、删除。
+- 文档模块：上传、Tika 解析、分块、Embedding、Elasticsearch 向量库入库、列表、详情、分块查看、删除。
 - Agent 模块：模型通过 Spring AI Function Calling 自行选择工具，支持知识库检索和错误日志分析。
 
 暂未实现多轮会话持久化和流式输出。
@@ -14,7 +14,8 @@
 - Spring AI 1.1.8
 - MyBatis-Plus 3.5.12
 - MySQL 8
-- SimpleVectorStore（JSON 文件持久化）
+- Elasticsearch 8.x（向量检索，Spring AI Elasticsearch VectorStore）
+- Spring Data Elasticsearch
 
 ## 环境变量与配置
 
@@ -29,6 +30,12 @@
 | `OPENAI_BASE_URL` | 否 | 默认 `https://api.openai.com`，可配置兼容接口 |
 | `CHAT_MODEL` | 否 | 默认 `gpt-4o-mini` |
 | `EMBEDDING_MODEL` | 否 | 默认 `text-embedding-3-small` |
+| `ES_URIS` | 否 | 默认 `http://localhost:9200` |
+| `ES_USERNAME` | 否 | ES 开启 security 时填写 |
+| `ES_PASSWORD` | 否 | ES 开启 security 时填写 |
+| `ES_INDEX_NAME` | 否 | 默认 `ai-doc-assistant` |
+| `ES_VECTOR_DIMENSIONS` | 否 | 默认 `1536`，必须与 Embedding 模型一致 |
+| `ES_SIMILARITY` | 否 | 默认 `cosine` |
 | `SERVER_PORT` | 否 | 默认 `8080` |
 
 本地文件配置：
@@ -41,10 +48,20 @@ mvn spring-boot:run -Dspring-boot.run.arguments="--spring.config.additional-loca
 
 `application-local.yml` 已被 `.gitignore` 忽略。
 
-其他存储位置：
+上传目录：
 
-- 上传目录：`./data/uploads`
-- 向量库文件：`./data/vector-store.json`
+```text
+./data/uploads
+```
+
+Elasticsearch：
+
+- 需要可访问的 Elasticsearch 8.x，默认地址 `http://localhost:9200`
+- 索引默认 `ai-doc-assistant`，由 `initialize-schema: true` 首次自动创建
+- `ES_VECTOR_DIMENSIONS` 必须与 Embedding 模型一致：
+  - OpenAI `text-embedding-3-small`：1536
+  - 本地假 Embedding 服务：8
+- 如果更换 Embedding 模型，需要删除旧索引后重新建立
 
 > Spring AI 2.x 面向 Spring Boot 4，本项目使用 Spring Boot 3.x，因此使用 Spring AI 1.1.x。
 
@@ -168,6 +185,7 @@ OPENAI_API_KEY=test \
 OPENAI_BASE_URL=http://localhost:9999 \
 EMBEDDING_MODEL=fake-embedding \
 CHAT_MODEL=fake-chat \
+ES_VECTOR_DIMENSIONS=8 \
 mvn spring-boot:run
 ```
 
@@ -210,7 +228,7 @@ DocumentController.upload
   → DocumentService.upload
     → FileStorageService.save                 校验并保存原始文件
     → DocumentIngestor.parseAndSplit          Tika 解析 + TokenTextSplitter 分块
-    → VectorStoreService.add                  Embedding + SimpleVectorStore.add + JSON 持久化
+    → VectorStoreService.add                  Embedding + ElasticsearchVectorStore.add
     → AiDocumentChunkMapper.insert            保存分块原文和向量 ID
     → AiDocumentMapper.updateById             更新为 READY
 ```
@@ -218,11 +236,27 @@ DocumentController.upload
 ```
 DocumentController.delete
   → DocumentService.delete
-    → VectorStoreService.delete               按向量 ID 删除并持久化
+    → VectorStoreService.delete               按向量 ID 从 Elasticsearch 删除
     → AiDocumentChunkMapper.delete
     → AiDocumentMapper.deleteById
     → FileStorageService.delete
 ```
+
+## 测试
+
+```bash
+mvn test
+```
+
+当前测试：
+
+- `ErrorLogToolTest`：3 个
+- `KnowledgeBaseToolTest`：3 个
+- `CountingLoggingToolCallbackTest`：2 个
+
+共 8 个测试通过。单元测试不启动 Spring 上下文，不需要 MySQL、Elasticsearch 或 OpenAI。
+
+完整应用启动需要 MySQL、Elasticsearch 8.x，以及可用的 OpenAI 兼容模型或本地假模型服务。
 
 ## 常见异常
 
@@ -230,6 +264,6 @@ DocumentController.delete
 - Tika 解析不出文本：文档标记 FAILED，返回“文档中没有可解析的文本”
 - 未配置 `OPENAI_API_KEY`：快速失败，不创建文档记录
 - Embedding 接口 401/网络异常：文档标记 FAILED，保留错误信息
-- 向量库 JSON 损坏：应用启动失败，避免静默丢数据
+- Elasticsearch 不可用、索引创建失败或向量维度不匹配：启动/检索失败并返回错误
 - 文档不存在或 ID 非数字：统一错误响应
 - 删除时向量库操作失败：数据库和文件暂不删除，可重试
