@@ -4,6 +4,7 @@
 
 - 文档模块：上传、Tika 解析、分块、Embedding、Elasticsearch 向量库入库、列表、详情、分块查看、删除。
 - Agent 模块：模型通过 Spring AI Function Calling 自行选择工具，支持知识库检索和错误日志分析。
+- 前端：Vue 3 + Vite + Element Plus，提供文档管理、分块详情和 Agent 对话页面。
 
 暂未实现多轮会话持久化和流式输出。
 
@@ -83,6 +84,38 @@ mvn spring-boot:run
 ```bash
 SERVER_PORT=8081 mvn spring-boot:run
 ```
+
+## 前端
+
+前端位于 `frontend/`，对接现有 `/api/documents` 与 `/api/agent/chat` 接口。
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+开发地址为 <http://localhost:5173>，Vite 会把 `/api` 代理到 `http://localhost:8080`。
+后端端口不同时可复制 `frontend/.env.example` 为 `frontend/.env.local` 并修改
+`VITE_PROXY_TARGET`。
+
+生产构建：
+
+```bash
+npm run build
+npm run preview
+```
+
+构建产物在 `frontend/dist/`。部署时由网关将 `/api` 转发到后端，或通过
+`VITE_API_BASE_URL` 指定 API 根地址。仓库仅提交 `.env.example`，真实环境变量和
+本地私有配置不会进入版本库。前端日志分析会发送用户输入，请勿粘贴密钥、令牌等敏感信息。
+
+功能页面：
+
+| 路由 | 功能 |
+| --- | --- |
+| `/documents` | 上传、筛选、状态查看、分块详情、删除 |
+| `/agent` | 单轮 Agent 问答、工具调用记录、上限提示 |
 
 ## 接口测试
 
